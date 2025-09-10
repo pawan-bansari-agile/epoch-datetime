@@ -48,14 +48,23 @@ export class EpochDateTime {
     return parsed.unix();
   }
 
-  fromEpoch(epoch: number, tz?: string) {
+  //   fromEpoch(epoch: number, tz?: string) {
+  //     const zone = tz || this.config.defaultTimezone;
+  //     const format = this.config.use12Hour ? 'hh:mm A' : 'HH:mm';
+  //     const d = dayjs.unix(epoch).tz(zone);
+  //     return {
+  //       date: d.format('YYYY-MM-DD'),
+  //       time: d.format(format),
+  //     };
+  //   }
+  fromEpoch(epoch: number, tz?: string): { date: string; time: string } {
     const zone = tz || this.config.defaultTimezone;
-    const format = this.config.use12Hour ? 'hh:mm A' : 'HH:mm';
     const d = dayjs.unix(epoch).tz(zone);
-    return {
-      date: d.format('YYYY-MM-DD'),
-      time: d.format(format),
-    };
+
+    const date = d.format('YYYY-MM-DD');
+    const time = d.format(this.config.use12Hour ? 'hh:mm A' : 'HH:mm');
+
+    return { date, time };
   }
 
   formatEpoch(epoch: number, format?: string, tz?: string) {
