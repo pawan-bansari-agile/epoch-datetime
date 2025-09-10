@@ -2,15 +2,19 @@
   "name": "epoch-datetime",
   "version": "1.0.1",
   "description": "Timezone-aware epoch-only wrapper around dayjs",
-  "main": "lib/index.js",
-  "module": "lib/index.js",
+  "main": "lib/index.cjs",
+  "module": "lib/index.mjs",
   "types": "lib/index.d.ts",
+  "exports": {
+    "require": "./lib/index.cjs",
+    "import": "./lib/index.mjs"
+  },
   "files": [
     "lib"
   ],
   "scripts": {
     "test": "jest --runInBand",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
     "prepare": "npm run build",
     "lint": "eslint . --ext .ts"
   },
@@ -31,6 +35,7 @@
     "eslint": "^9.35.0",
     "jest": "^30.1.3",
     "ts-jest": "^29.4.1",
+    "tsup": "^8.5.0",
     "typescript": "^5.9.2"
   }
 }
