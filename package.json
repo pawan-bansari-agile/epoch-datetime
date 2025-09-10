@@ -1,6 +1,6 @@
 {
   "name": "epoch-datetime",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Timezone-aware epoch-only wrapper around dayjs",
   "main": "lib/index.cjs",
   "module": "lib/index.mjs",
