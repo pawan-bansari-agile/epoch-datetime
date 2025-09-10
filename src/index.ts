@@ -1,9 +1,11 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import tz from 'dayjs/plugin/timezone';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 
 dayjs.extend(utc);
 dayjs.extend(tz);
+dayjs.extend(customParseFormat);
 
 export interface EpochConfig {
   defaultTimezone?: string;
@@ -34,17 +36,41 @@ export class EpochDateTime {
   //     if (!parsed.isValid()) throw new Error(`Invalid input: ${date} ${time}`);
   //     return parsed.unix();
   //   }
+  //   toEpoch(date: string, time: string, tz?: string): number {
+  //     const zone = tz || this.config.defaultTimezone;
+
+  //     const input = `${date} ${time}`;
+  //     let parsed = dayjs.tz(input, 'YYYY-MM-DD hh:mm A', zone);
+
+  //     if (!parsed.isValid()) {
+  //       parsed = dayjs.tz(input, 'YYYY-MM-DD HH:mm', zone);
+  //     }
+
+  //     if (!parsed.isValid()) throw new Error(`Invalid input: ${date} ${time}`);
+  //     return parsed.unix();
+  //   }
   toEpoch(date: string, time: string, tz?: string): number {
     const zone = tz || this.config.defaultTimezone;
-
     const input = `${date} ${time}`;
+
+    // Try explicit 12h parse first
     let parsed = dayjs.tz(input, 'YYYY-MM-DD hh:mm A', zone);
 
+    // If that fails, try 24h parse
     if (!parsed.isValid()) {
       parsed = dayjs.tz(input, 'YYYY-MM-DD HH:mm', zone);
     }
 
-    if (!parsed.isValid()) throw new Error(`Invalid input: ${date} ${time}`);
+    // Final fallback: try parsing without format (not ideal but tolerant)
+    if (!parsed.isValid()) {
+      parsed = dayjs.tz(input, zone);
+    }
+
+    if (!parsed.isValid()) {
+      throw new Error(`Invalid input date/time: ${input}`);
+    }
+
+    // Return unix epoch (seconds)
     return parsed.unix();
   }
 
@@ -57,14 +83,16 @@ export class EpochDateTime {
   //       time: d.format(format),
   //     };
   //   }
-  fromEpoch(epoch: number, tz?: string): { date: string; time: string } {
+  fromEpoch(epoch: number, tz?: string, formatOverride?: '12h' | '24h') {
     const zone = tz || this.config.defaultTimezone;
     const d = dayjs.unix(epoch).tz(zone);
-
-    const date = d.format('YYYY-MM-DD');
-    const time = d.format(this.config.use12Hour ? 'hh:mm A' : 'HH:mm');
-
-    return { date, time };
+    const use12 = formatOverride
+      ? formatOverride === '12h'
+      : this.config.use12Hour;
+    return {
+      date: d.format('YYYY-MM-DD'),
+      time: use12 ? d.format('hh:mm A') : d.format('HH:mm'),
+    };
   }
 
   formatEpoch(epoch: number, format?: string, tz?: string) {

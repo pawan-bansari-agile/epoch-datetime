@@ -9,7 +9,7 @@ declare class EpochDateTime {
     private config;
     constructor(config?: EpochConfig);
     toEpoch(date: string, time: string, tz?: string): number;
-    fromEpoch(epoch: number, tz?: string): {
+    fromEpoch(epoch: number, tz?: string, formatOverride?: '12h' | '24h'): {
         date: string;
         time: string;
     };
@@ -25,7 +25,7 @@ declare class EpochDateTime {
 }
 declare const setConfig: (cfg: EpochConfig) => void;
 declare const toEpoch: (date: string, time: string, tz?: string) => number;
-declare const fromEpoch: (epoch: number, tz?: string) => {
+declare const fromEpoch: (epoch: number, tz?: string, formatOverride?: "12h" | "24h") => {
     date: string;
     time: string;
 };
