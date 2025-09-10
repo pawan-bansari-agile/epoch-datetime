@@ -1,3 +1,4 @@
+// src/index.ts
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import tz from 'dayjs/plugin/timezone';
@@ -13,56 +14,42 @@ export interface EpochConfig {
   use12Hour?: boolean;
 }
 
+function normalizeFormatFor12h(fmt: string) {
+  // If the format already contains 'A' or 'a', keep it.
+  if (/\bA\b|\ba\b/.test(fmt)) return fmt;
+  // Prefer hh over HH for 12-hour
+  return (
+    fmt.replace(/HH/g, 'hh') +
+    (/\bmm\b/.test(fmt) && !fmt.includes('A') ? ' A' : '')
+  );
+}
+
 export class EpochDateTime {
   private config: Required<EpochConfig>;
 
   constructor(config?: EpochConfig) {
     this.config = {
       defaultTimezone: config?.defaultTimezone || 'UTC',
-      defaultFormat: config?.defaultFormat || 'YYYY-MM-DD HH:mm',
+      defaultFormat: config?.defaultFormat || 'YYYY-MM-DD HH:mm:ss',
       use12Hour: config?.use12Hour ?? false,
     };
   }
 
-  //   toEpoch(date: string, time: string, tz?: string): number {
-  //     const zone = tz || this.config.defaultTimezone;
-
-  //     // try both 12h and 24h parsing
-  //     const input = `${date} ${time}`;
-  //     const parsed =
-  //       dayjs.tz(input, 'YYYY-MM-DD hh:mm A', zone, true) ||
-  //       dayjs.tz(input, 'YYYY-MM-DD HH:mm', zone, true);
-
-  //     if (!parsed.isValid()) throw new Error(`Invalid input: ${date} ${time}`);
-  //     return parsed.unix();
-  //   }
-  //   toEpoch(date: string, time: string, tz?: string): number {
-  //     const zone = tz || this.config.defaultTimezone;
-
-  //     const input = `${date} ${time}`;
-  //     let parsed = dayjs.tz(input, 'YYYY-MM-DD hh:mm A', zone);
-
-  //     if (!parsed.isValid()) {
-  //       parsed = dayjs.tz(input, 'YYYY-MM-DD HH:mm', zone);
-  //     }
-
-  //     if (!parsed.isValid()) throw new Error(`Invalid input: ${date} ${time}`);
-  //     return parsed.unix();
-  //   }
   toEpoch(date: string, time: string, tz?: string): number {
     const zone = tz || this.config.defaultTimezone;
     const input = `${date} ${time}`;
 
-    // Try explicit 12h parse first
+    // Try explicit 12h parse first (e.g. "2025-09-10 02:30 PM")
     let parsed = dayjs.tz(input, 'YYYY-MM-DD hh:mm A', zone);
 
-    // If that fails, try 24h parse
+    // If that fails, try 24h parse (e.g. "2025-09-10 14:30")
     if (!parsed.isValid()) {
       parsed = dayjs.tz(input, 'YYYY-MM-DD HH:mm', zone);
     }
 
-    // Final fallback: try parsing without format (not ideal but tolerant)
+    // Final tolerant fallback: let dayjs parse with tz (less strict)
     if (!parsed.isValid()) {
+      // dayjs.tz accepts (dateString, timezone)
       parsed = dayjs.tz(input, zone);
     }
 
@@ -70,34 +57,48 @@ export class EpochDateTime {
       throw new Error(`Invalid input date/time: ${input}`);
     }
 
-    // Return unix epoch (seconds)
     return parsed.unix();
   }
 
-  //   fromEpoch(epoch: number, tz?: string) {
-  //     const zone = tz || this.config.defaultTimezone;
-  //     const format = this.config.use12Hour ? 'hh:mm A' : 'HH:mm';
-  //     const d = dayjs.unix(epoch).tz(zone);
-  //     return {
-  //       date: d.format('YYYY-MM-DD'),
-  //       time: d.format(format),
-  //     };
-  //   }
   fromEpoch(epoch: number, tz?: string, formatOverride?: '12h' | '24h') {
     const zone = tz || this.config.defaultTimezone;
     const d = dayjs.unix(epoch).tz(zone);
-    const use12 = formatOverride
-      ? formatOverride === '12h'
-      : this.config.use12Hour;
-    return {
-      date: d.format('YYYY-MM-DD'),
-      time: use12 ? d.format('hh:mm A') : d.format('HH:mm'),
-    };
+
+    const use12 =
+      typeof formatOverride !== 'undefined'
+        ? formatOverride === '12h'
+        : this.config.use12Hour;
+
+    const date = d.format('YYYY-MM-DD');
+
+    // If defaultFormat contains HH/HH:mm etc, respect the structure but toggle 12/24 hour part.
+    let timeStr: string;
+    if (use12) {
+      // If defaultFormat contains HH -> convert to hh and add AM/PM if missing
+      const fmt = normalizeFormatFor12h(this.config.defaultFormat);
+      timeStr = d
+        .format(fmt)
+        .replace(/^[\s\S]*?(\d{1,2}:\d{2}(:\d{2})?(\s?[AP]M)?)$/, (m) => m);
+      // Simpler: prefer explicit hh:mm A
+      timeStr = d.format('hh:mm A');
+    } else {
+      timeStr = d.format('HH:mm');
+    }
+
+    return { date, time: timeStr };
   }
 
   formatEpoch(epoch: number, format?: string, tz?: string) {
     const zone = tz || this.config.defaultTimezone;
-    const fmt = format || this.config.defaultFormat;
+
+    // if explicit format provided, use it directly
+    if (format) return dayjs.unix(epoch).tz(zone).format(format);
+
+    // no explicit format: respect defaultFormat + use12Hour toggle
+    let fmt = this.config.defaultFormat;
+    if (this.config.use12Hour) {
+      fmt = normalizeFormatFor12h(fmt);
+    }
     return dayjs.unix(epoch).tz(zone).format(fmt);
   }
 
@@ -106,7 +107,8 @@ export class EpochDateTime {
     epoch2: number,
     unit: dayjs.OpUnitType = 'second'
   ) {
-    return dayjs.unix(epoch1).diff(dayjs.unix(epoch2), unit);
+    // Return absolute difference by default so API callers get positive numbers
+    return Math.abs(dayjs.unix(epoch1).diff(dayjs.unix(epoch2), unit));
   }
 
   add(epoch: number, amount: number, unit: dayjs.ManipulateType) {
@@ -144,24 +146,33 @@ export class EpochDateTime {
   }
 }
 
-/**
- * Backward compatibility: default singleton + helpers
- */
+/* Backward compatibility: expose default singleton + helpers */
 let defaultInstance = new EpochDateTime();
 
 export const setConfig = (cfg: EpochConfig) => {
   defaultInstance = new EpochDateTime(cfg);
 };
 
-// re-export methods bound to default instance
-export const toEpoch = defaultInstance.toEpoch.bind(defaultInstance);
-export const fromEpoch = defaultInstance.fromEpoch.bind(defaultInstance);
-export const formatEpoch = defaultInstance.formatEpoch.bind(defaultInstance);
-export const difference = defaultInstance.difference.bind(defaultInstance);
-export const add = defaultInstance.add.bind(defaultInstance);
-export const subtract = defaultInstance.subtract.bind(defaultInstance);
-export const clamp = defaultInstance.clamp.bind(defaultInstance);
-export const round = defaultInstance.round.bind(defaultInstance);
-export const startOfDay = defaultInstance.startOfDay.bind(defaultInstance);
-export const endOfDay = defaultInstance.endOfDay.bind(defaultInstance);
-export const isSameDay = defaultInstance.isSameDay.bind(defaultInstance);
+export const toEpoch = (...args: Parameters<EpochDateTime['toEpoch']>) =>
+  defaultInstance.toEpoch(...args);
+export const fromEpoch = (...args: Parameters<EpochDateTime['fromEpoch']>) =>
+  defaultInstance.fromEpoch(...args);
+export const formatEpoch = (
+  ...args: Parameters<EpochDateTime['formatEpoch']>
+) => defaultInstance.formatEpoch(...args);
+export const difference = (...args: Parameters<EpochDateTime['difference']>) =>
+  defaultInstance.difference(...args);
+export const add = (...args: Parameters<EpochDateTime['add']>) =>
+  defaultInstance.add(...args);
+export const subtract = (...args: Parameters<EpochDateTime['subtract']>) =>
+  defaultInstance.subtract(...args);
+export const clamp = (...args: Parameters<EpochDateTime['clamp']>) =>
+  defaultInstance.clamp(...args);
+export const round = (...args: Parameters<EpochDateTime['round']>) =>
+  defaultInstance.round(...args);
+export const startOfDay = (...args: Parameters<EpochDateTime['startOfDay']>) =>
+  defaultInstance.startOfDay(...args);
+export const endOfDay = (...args: Parameters<EpochDateTime['endOfDay']>) =>
+  defaultInstance.endOfDay(...args);
+export const isSameDay = (...args: Parameters<EpochDateTime['isSameDay']>) =>
+  defaultInstance.isSameDay(...args);

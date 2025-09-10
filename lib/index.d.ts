@@ -24,19 +24,19 @@ declare class EpochDateTime {
     isSameDay(epoch1: number, epoch2: number, tz?: string): boolean;
 }
 declare const setConfig: (cfg: EpochConfig) => void;
-declare const toEpoch: (date: string, time: string, tz?: string) => number;
-declare const fromEpoch: (epoch: number, tz?: string, formatOverride?: "12h" | "24h") => {
+declare const toEpoch: (...args: Parameters<EpochDateTime["toEpoch"]>) => number;
+declare const fromEpoch: (...args: Parameters<EpochDateTime["fromEpoch"]>) => {
     date: string;
     time: string;
 };
-declare const formatEpoch: (epoch: number, format?: string, tz?: string) => string;
-declare const difference: (epoch1: number, epoch2: number, unit?: dayjs.OpUnitType) => number;
-declare const add: (epoch: number, amount: number, unit: dayjs.ManipulateType) => number;
-declare const subtract: (epoch: number, amount: number, unit: dayjs.ManipulateType) => number;
-declare const clamp: (epoch: number, min: number, max: number) => number;
-declare const round: (epoch: number, unit: dayjs.OpUnitType) => number;
-declare const startOfDay: (epoch: number, tz?: string) => number;
-declare const endOfDay: (epoch: number, tz?: string) => number;
-declare const isSameDay: (epoch1: number, epoch2: number, tz?: string) => boolean;
+declare const formatEpoch: (...args: Parameters<EpochDateTime["formatEpoch"]>) => string;
+declare const difference: (...args: Parameters<EpochDateTime["difference"]>) => number;
+declare const add: (...args: Parameters<EpochDateTime["add"]>) => number;
+declare const subtract: (...args: Parameters<EpochDateTime["subtract"]>) => number;
+declare const clamp: (...args: Parameters<EpochDateTime["clamp"]>) => number;
+declare const round: (...args: Parameters<EpochDateTime["round"]>) => number;
+declare const startOfDay: (...args: Parameters<EpochDateTime["startOfDay"]>) => number;
+declare const endOfDay: (...args: Parameters<EpochDateTime["endOfDay"]>) => number;
+declare const isSameDay: (...args: Parameters<EpochDateTime["isSameDay"]>) => boolean;
 
 export { type EpochConfig, EpochDateTime, add, clamp, difference, endOfDay, formatEpoch, fromEpoch, isSameDay, round, setConfig, startOfDay, subtract, toEpoch };
