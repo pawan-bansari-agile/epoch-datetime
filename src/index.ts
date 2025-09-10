@@ -60,6 +60,33 @@ export class EpochDateTime {
     return parsed.unix();
   }
 
+  //   fromEpoch(epoch: number, tz?: string, formatOverride?: '12h' | '24h') {
+  //     const zone = tz || this.config.defaultTimezone;
+  //     const d = dayjs.unix(epoch).tz(zone);
+
+  //     const use12 =
+  //       typeof formatOverride !== 'undefined'
+  //         ? formatOverride === '12h'
+  //         : this.config.use12Hour;
+
+  //     const date = d.format('YYYY-MM-DD');
+
+  //     // If defaultFormat contains HH/HH:mm etc, respect the structure but toggle 12/24 hour part.
+  //     let timeStr: string;
+  //     if (use12) {
+  //       // If defaultFormat contains HH -> convert to hh and add AM/PM if missing
+  //       const fmt = normalizeFormatFor12h(this.config.defaultFormat);
+  //       timeStr = d
+  //         .format(fmt)
+  //         .replace(/^[\s\S]*?(\d{1,2}:\d{2}(:\d{2})?(\s?[AP]M)?)$/, (m) => m);
+  //       // Simpler: prefer explicit hh:mm A
+  //       timeStr = d.format('hh:mm A');
+  //     } else {
+  //       timeStr = d.format('HH:mm');
+  //     }
+
+  //     return { date, time: timeStr };
+  //   }
   fromEpoch(epoch: number, tz?: string, formatOverride?: '12h' | '24h') {
     const zone = tz || this.config.defaultTimezone;
     const d = dayjs.unix(epoch).tz(zone);
@@ -69,20 +96,14 @@ export class EpochDateTime {
         ? formatOverride === '12h'
         : this.config.use12Hour;
 
-    const date = d.format('YYYY-MM-DD');
-
-    // If defaultFormat contains HH/HH:mm etc, respect the structure but toggle 12/24 hour part.
+    // Always derive both from the same zoned dayjs
+    const date = d.tz(zone).format('YYYY-MM-DD');
     let timeStr: string;
+
     if (use12) {
-      // If defaultFormat contains HH -> convert to hh and add AM/PM if missing
-      const fmt = normalizeFormatFor12h(this.config.defaultFormat);
-      timeStr = d
-        .format(fmt)
-        .replace(/^[\s\S]*?(\d{1,2}:\d{2}(:\d{2})?(\s?[AP]M)?)$/, (m) => m);
-      // Simpler: prefer explicit hh:mm A
-      timeStr = d.format('hh:mm A');
+      timeStr = d.tz(zone).format('hh:mm A'); // 12h
     } else {
-      timeStr = d.format('HH:mm');
+      timeStr = d.tz(zone).format('HH:mm'); // 24h
     }
 
     return { date, time: timeStr };
